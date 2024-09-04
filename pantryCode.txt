@@ -1,0 +1,406 @@
+Page.js : without any design 
+----------------------------
+'use client'
+import Image from "next/image";
+import { useState, useEffect } from 'react'
+import { Box, Modal, TextField, Typography, Stack, Button } from '@mui/material';
+import { query, collection, getDocs, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from './firebase';  // Import your initialized Firestore instance
+
+export default function Home() {
+    const [inventory, setInventory] = useState([])
+    const [open, setOpen] = useState(false)
+    const [itemname, setItemname] = useState('')
+    
+    const updateInventory = async () => {
+      const inventoryRef = collection(db, 'inventory');
+      const snapshot = await getDocs(query(inventoryRef));
+      const inventoryList = snapshot.docs.map(doc => ({
+        name: doc.id,
+        ...doc.data(),
+      }));
+      setInventory(inventoryList);
+    }
+     
+    const removeItem = async (item) => {
+      const docRef = doc(db, 'inventory', item);
+      const docSnap = await getDoc(docRef);
+  
+      if (docSnap.exists()) {
+        const { quantity } = docSnap.data();
+        if (quantity === 1) {
+          await deleteDoc(docRef);
+        } else {
+          await setDoc(docRef, { quantity: quantity - 1 }, { merge: true });
+        }
+      }
+      await updateInventory();
+    }
+  
+    const addItem = async (item) => {
+      const docRef = doc(db, 'inventory', item);
+      const docSnap = await getDoc(docRef);
+  
+      if (docSnap.exists()) {
+        const { quantity } = docSnap.data();
+        await setDoc(docRef, { quantity: quantity + 1 }, { merge: true });
+      } else {
+        await setDoc(docRef, { quantity: 1 });
+      }
+      await updateInventory();
+    }
+
+    useEffect(() => {
+      updateInventory();   
+    }, [])
+    
+    const handleOpen = () => setOpen(true);
+    const handleClose = () => setOpen(false);
+
+
+    return (
+    <Box width="100vw"
+        height="100vh"
+        display="flex"
+        flexDirection="column"
+        justifyContent="center"
+        alignItems="center"
+        gap={2}>
+
+    <Modal open={open} onClose={handleClose}>
+    <Box
+              position="absolute"
+              top="50%"
+              left="50%"
+              width={400}
+              bgcolor="white"
+              border="2px solid #000"
+              boxShadow={24}
+              p={4}
+              display="flex"
+              flexDirection="column"
+              gap={3} 
+              sx={{
+                 transform:"translate(-50%,-50%)"
+              }}>
+
+
+
+        <Typography variant="h6">Add Item</Typography>
+        <Stack width="100%" direction ="row" spacing={2}>
+            <TextField
+              variant='outlined'
+              fullWidth
+              value={itemname}
+              onChange={(e) => {
+                setItemname(e.target.value)
+              }}/>
+              <Button variant="outlined" onClick={ () =>{
+                addItem(itemname)
+                setItemname('')
+                handleClose()
+              }}
+              >
+                ADD
+              </Button>
+
+        </Stack>
+    </Box>    
+
+
+
+    </Modal>
+
+      <Button variant="contained"
+              onClick={() =>{
+                handleOpen()
+              }}>
+                ADD New Item
+      </Button>
+      <Box border="1px solid #333">
+        <Box width="800px" heigth="100px" bgcolor='#ADD8E6' 
+         display="flex" alignItems="center" justifyContent="center"
+        >
+
+              <Typography variant="h2" color="#333">
+                Inventory Items
+              </Typography>
+        </Box>
+      
+
+      <Stack width="800px" height="300px"
+          spacing={2} overflow="auto">
+            {
+              inventory.map(({name , quantity}) => (
+                <Box key={name} width="100%" minHeight="150px" display="flex" alignItems="center" justifyContent="space-between" bgcolor="#f0f0f0" padding={5}>
+
+              <Typography variant ='h3' color="#333" textAlign="center">
+                {name.charAt(0).toUpperCase() + name.slice(1)}
+                </Typography>
+              <Typography variant ='h3' color="#333" textAlign="center">
+                {quantity}
+              </Typography>
+                <Stack direction="row" spacing={2}>
+              <Button variant="contained" onClick={()=>{
+                addItem(name)
+              }}>
+                ADD
+              </Button>
+
+              <Button variant="contained" onClick={()=>{
+                removeItem(name)
+              }}>
+                Remove
+              </Button>
+                  
+              </Stack>
+
+                </Box>
+              ))
+            }
+          </Stack>
+      </Box>
+    </Box>
+
+
+    )
+}
+
+firebase.js
+-------------
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore"
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCvs8S7PrwDCPRCi_qrATy7E0zFpO_gQsM",
+  authDomain: "inventory-management-5c8fb.firebaseapp.com",
+  projectId: "inventory-management-5c8fb",
+  storageBucket: "inventory-management-5c8fb.appspot.com",
+  messagingSenderId: "604851191610",
+  appId: "1:604851191610:web:485cf725baae1ec41e5a03",
+  measurementId: "G-KSZVGW9Z8W"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+const db = getFirestore(app);
+export { db };
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+page.js: with simple design changes
+------------------------------------
+'use client'
+import Image from "next/image";
+import { useState, useEffect } from 'react'
+import { Box, Modal, TextField, Typography, Stack, Button, Input } from '@mui/material';
+import { query, collection, getDocs, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from './firebase'; // Ensure this path is correct
+
+export default function Home() {
+    // State variables
+    const [inventory, setInventory] = useState([])
+    const [open, setOpen] = useState(false)
+    const [itemName, setItemName] = useState('')
+    const [itemQuantity, setItemQuantity] = useState('')
+    const [itemImage, setItemImage] = useState(null)
+
+    // Fetch and update inventory from Firestore
+    const updateInventory = async () => {
+      const inventoryRef = collection(db, 'inventory');
+      const snapshot = await getDocs(query(inventoryRef));
+      const inventoryList = snapshot.docs.map(doc => ({
+        name: doc.id,
+        ...doc.data(),
+      }));
+      setInventory(inventoryList);
+    }
+     
+    // Remove an item or decrease its quantity
+    const removeItem = async (item) => {
+      const docRef = doc(db, 'inventory', item);
+      const docSnap = await getDoc(docRef);
+  
+      if (docSnap.exists()) {
+        const { quantity } = docSnap.data();
+        if (quantity === 1) {
+          await deleteDoc(docRef);
+        } else {
+          await setDoc(docRef, { quantity: quantity - 1 }, { merge: true });
+        }
+      }
+      await updateInventory();
+    }
+  
+    // Add an item or increase its quantity
+    const addItem = async (item) => {
+      const docRef = doc(db, 'inventory', item);
+      const docSnap = await getDoc(docRef);
+  
+      if (docSnap.exists()) {
+        const { quantity } = docSnap.data();
+        await setDoc(docRef, { quantity: quantity + 1 }, { merge: true });
+      } else {
+        await setDoc(docRef, { quantity: 1, image: itemImage });
+      }
+      await updateInventory();
+    }
+
+    // Fetch inventory on component mount
+    useEffect(() => {
+      updateInventory();   
+    }, [])
+    
+    // Modal control functions
+    const handleOpen = () => setOpen(true);
+    const handleClose = () => {
+      setOpen(false);
+      setItemName('');
+      setItemQuantity('');
+      setItemImage(null);
+    }
+
+    // Add a new item to the inventory
+    const handleAddNewItem = async () => {
+      if (itemName && itemQuantity) {
+        const docRef = doc(db, 'inventory', itemName);
+        await setDoc(docRef, { quantity: parseInt(itemQuantity), image: itemImage });
+        await updateInventory();
+        handleClose();
+      }
+    }
+
+    // Main component render
+    return (
+      <Box 
+        width="100vw"
+        height="100vh"
+        display="flex"
+        flexDirection="column"
+        alignItems="center"
+        sx={{ backgroundColor: '#F8F0E5' }}
+      >
+        {/* Page Title */}
+        <Typography variant="h2" color="#102C57" my={4}>
+          Manage Pantry
+        </Typography>
+
+        {/* Add New Item Button */}
+        <Button 
+          variant="contained" 
+          onClick={handleOpen}
+          sx={{ backgroundColor: '#102C57', color: '#F8F0E5', mb: 2 }}
+        >
+          Add New Item
+        </Button>
+
+        {/* Add New Item Modal */}
+        <Modal open={open} onClose={handleClose}>
+          <Box
+            position="absolute"
+            top="50%"
+            left="50%"
+            width={400}
+            bgcolor="#EADBC8"
+            border="2px solid #102C57"
+            boxShadow={24}
+            p={4}
+            display="flex"
+            flexDirection="column"
+            gap={3} 
+            sx={{
+              transform: "translate(-50%,-50%)"
+            }}
+          >
+            <Typography variant="h6" color="#102C57">Add Item</Typography>
+            <TextField
+              label="Item Name"
+              variant='outlined'
+              fullWidth
+              value={itemName}
+              onChange={(e) => setItemName(e.target.value)}
+            />
+            <TextField
+              label="Quantity"
+              variant='outlined'
+              type="number"
+              fullWidth
+              value={itemQuantity}
+              onChange={(e) => setItemQuantity(e.target.value)}
+            />
+            <Input
+              type="file"
+              onChange={(e) => setItemImage(URL.createObjectURL(e.target.files[0]))}
+            />
+            <Button 
+              variant="contained" 
+              onClick={handleAddNewItem}
+              sx={{ backgroundColor: '#102C57', color: '#F8F0E5' }}
+            >
+              Add
+            </Button>
+          </Box>
+        </Modal>
+
+        {/* Inventory Grid */}
+        <Stack 
+          width="80%" 
+          direction="row" 
+          flexWrap="wrap" 
+          justifyContent="center" 
+          gap={2}
+        >
+          {inventory.map(({ name, quantity, image }) => (
+            <Box 
+              key={name} 
+              width="200px" 
+              height="250px" 
+              display="flex" 
+              flexDirection="column" 
+              alignItems="center" 
+              justifyContent="space-between" 
+              bgcolor="#DAC0A3" 
+              p={2}
+              borderRadius={2}
+            >
+              {/* Item Image */}
+              {image && <Image src={image} alt={name} width={100} height={100} objectFit="cover" />}
+              {/* Item Name */}
+              <Typography variant='h6' color="#102C57" textAlign="center">
+                {name.charAt(0).toUpperCase() + name.slice(1)}
+              </Typography>
+              {/* Item Quantity */}
+              <Typography variant='h6' color="#102C57" textAlign="center">
+                Quantity: {quantity}
+              </Typography>
+              {/* Add/Remove Buttons */}
+              <Stack direction="row" spacing={1}>
+                <Button 
+                  variant="contained" 
+                  size="small"
+                  onClick={() => addItem(name)}
+                  sx={{ backgroundColor: '#102C57', color: '#F8F0E5' }}
+                >
+                  Add
+                </Button>
+                <Button 
+                  variant="contained" 
+                  size="small"
+                  onClick={() => removeItem(name)}
+                  sx={{ backgroundColor: '#102C57', color: '#F8F0E5' }}
+                >
+                  Remove
+                </Button>
+              </Stack>
+            </Box>
+          ))}
+        </Stack>
+      </Box>
+    )
+}
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
